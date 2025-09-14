@@ -375,13 +375,6 @@ const state = {
   // 属性（0-100）
   attrs: { study: 62, diligent: 58, social: 40, independent: 70, justice: 0 },
 
-  // MBTI数据
-  mbti: {
-    code: 'INFP',
-    traits: { E: 12, I: 88, S: 35, N: 65, T: 40, F: 60, J: 28, P: 72 },
-    lastUpdate: Date.now()
-  },
-
   // 会话
   group: [
     {id: 1, from: 'teacher', text: '各位家长好，今天数学小测成绩已公布，请关注孩子学习状态。', ts: Date.now() - 300000},
@@ -389,7 +382,7 @@ const state = {
     {id: 3, from: 'parentSelf', text: '收到，我们会配合老师的工作。', ts: Date.now() - 250000}
   ],
   dm: [
-    {id: 1, from: 'child', text: '（示例）今天数学小测，还算顺利～', ts: Date.now() - 600000, status: 'read', me: false}
+    {id: 1, from: 'child', text: '（示例）今天数学小测，还算顺利～', ts: Date.now() - 600000, status: 'read'}
   ],
 
   // 队列：安静时段家长发出的"已送达未读"
@@ -490,51 +483,8 @@ function sendParent(text) {
   }
 }
 
-// 标签对应的属性变化表
-const EFFECTS_BY_TAG = {
-  study_rest: { study: +2, diligent: +1, favor: +1, trust: +1 },
-  ask_teacher: { study: +2, diligent: +1, trust: +2 },
-  night_study: { study: +1, diligent: +1, justice: +1 },
-  noon_rest: { diligent: +1, favor: +1 },
-  lunch: { favor: +1, social: +1 },
-  afternoon_class: { study: +1, diligent: +1 },
-  after_night_study: { diligent: +1, favor: +1, trust: +1 },
-  safety: { favor: +2, justice: +1 },
-  tomorrow: { study: +1, diligent: +1, favor: +1 },
-  sleep: { diligent: +1, favor: +1 },
-  good_night: { favor: +2 },
-  see_tomorrow: { study: +1, favor: +1 },
-  study_health: { study: +1, favor: +1 },
-  contact: { trust: +1, favor: +1 },
-  support: { favor: +2, trust: +1 }
-};
-
-// 根据标签应用属性变化
-function applyEffectByTag(tag) {
-  const eff = EFFECTS_BY_TAG[tag];
-  if (!eff) return '已发送';
-  
-  let summary = [];
-  
-  // 逐项累加，确保不会超出 0–100
-  for (const k in eff) {
-    if (k in state.attrs) {
-      const oldVal = state.attrs[k];
-      state.attrs[k] = Math.max(0, Math.min(100, state.attrs[k] + eff[k]));
-      if (eff[k] > 0) summary.push(`${k}+${eff[k]}`);
-    } else if (k === 'favor' || k === 'trust') {
-      const oldVal = state.rel[k];
-      state.rel[k] = Math.max(0, Math.min(100, state.rel[k] + eff[k]));
-      if (eff[k] > 0) summary.push(`${k}+${eff[k]}`);
-    }
-  }
-  
-  updateStatusDisplay();
-  return summary.length > 0 ? `属性提升: ${summary.join(', ')}` : '已发送';
-}
-
 function applyMessageEffect(text) {
-  // 根据消息内容调整属性（兜底逻辑）
+  // 根据消息内容调整属性
   if (text.includes('休息') || text.includes('睡觉')) {
     state.rel.favor += 1;
     state.attrs.diligent += 1;
@@ -638,109 +588,38 @@ function generateSmartReply(parentText) {
   }
 }
 
-// 格式化时间
-function formatTime(ts) {
-  const d = new Date(ts);
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-}
-
-// 渲染单条消息（微信风格）
-function renderMsg(m) {
-  const li = document.createElement('li');
-  li.className = 'msg ' + (m.me ? 'me' : 'other');
-  li.dataset.id = m.id;
-
-  const bubble = document.createElement('div');
-  bubble.className = 'bubble';
-
-  // 引用块
-  if (m.quote) {
-    const quote = document.createElement('div');
-    quote.className = 'quote';
-    const tag = document.createElement('span');
-    tag.className = 'q-tag';
-    tag.textContent = '引用';
-    const body = document.createElement('div');
-    body.className = 'q-body';
-    body.textContent = m.quote;
-    quote.appendChild(tag);
-    quote.appendChild(body);
-    bubble.appendChild(quote);
-  }
-
-  // 正文
-  const text = document.createElement('div');
-  text.className = 'text';
-  text.textContent = m.text;
-  bubble.appendChild(text);
-
-  // 时间
-  const time = document.createElement('span');
-  time.className = 'time';
-  time.textContent = formatTime(m.ts);
-  bubble.appendChild(time);
-
-  li.appendChild(bubble);
-  return li;
-}
-
-// 渲染私聊消息列表
 function renderDM() {
-  const chatList = document.getElementById('chatList');
-  chatList.innerHTML = '';
+  const wrap = document.getElementById('chat');
+  wrap.innerHTML = '';
   
   state.dm.forEach(m => {
-    if (m.from === 'system') {
-      const div = document.createElement('div');
-      div.className = 'msg system';
-      div.textContent = m.text;
-      chatList.appendChild(div);
-    } else {
-      const msg = renderMsg({
-        id: m.id,
-        me: m.from === 'parent',
-        text: m.text,
-        ts: m.ts,
-        quote: m.quote,
-        status: m.status
-      });
-      chatList.appendChild(msg);
+    const div = document.createElement('div');
+    div.className = 'msg ' + (m.from === 'child' ? 'other' : (m.from === 'parent' ? 'me' : 'system'));
+    div.textContent = m.text;
+    
+    if (m.from !== 'system') {
+      const t = document.createElement('div');
+      t.className = 'time';
+      const d = new Date(m.ts);
+      t.textContent = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+      div.appendChild(t);
+      
+      // 回执只显示在家长最后一条消息
+      if (m.from === 'parent') {
+        const isLastParent = state.dm.filter(msg => msg.from === 'parent').pop() === m;
+        if (isLastParent) {
+          const ack = document.createElement('div');
+          ack.className = 'ack';
+          ack.textContent = m.status === 'delivered' ? '已送达' : '已读';
+          div.appendChild(ack);
+        }
+      }
     }
+    
+    wrap.appendChild(div);
   });
   
-  // 强制回执规则
-  enforceAckRule();
-  
-  // 滚动到底部
-  const chatArea = document.getElementById('chat');
-  chatArea.scrollTop = chatArea.scrollHeight + 999;
-}
-
-// 强制回执规则：仅在我方最后一条
-function enforceAckRule() {
-  document.querySelectorAll('.msg.me .ack').forEach(n => n.remove());
-  const myMsgs = Array.from(document.querySelectorAll('.msg.me'));
-  const lastMy = myMsgs.at(-1);
-  if (!lastMy) return;
-  
-  const id = lastMy.dataset.id;
-  const m = state.dm.find(x => String(x.id) === id);
-  if (m && m.from === 'parent') {
-    const ack = document.createElement('span');
-    ack.className = 'ack';
-    ack.textContent = m.status === 'read' ? '已读' : '已送达';
-    lastMy.querySelector('.bubble').appendChild(ack);
-  }
-}
-
-/* ============= Toast功能 ============= */
-function showToast(msg) {
-  const toast = document.getElementById('toast');
-  toast.textContent = msg;
-  toast.classList.add('show');
-  setTimeout(() => {
-    toast.classList.remove('show');
-  }, 2000);
+  wrap.scrollTop = wrap.scrollHeight + 999;
 }
 
 /* ============= 选项功能 ============= */
@@ -759,33 +638,33 @@ function generateChoices() {
   
   if (currentSlot === 'class' || currentSlot === 'nightStudy') {
     options = [
-      {text: '好好学习，注意休息', tag: 'study_rest'},
-      {text: '有不懂的及时问老师', tag: 'ask_teacher'},
-      {text: '晚自习加油，早点回宿舍', tag: 'night_study'}
+      '好好学习，注意休息',
+      '有不懂的及时问老师',
+      '晚自习加油，早点回宿舍'
     ];
   } else if (currentSlot === 'noonBreak') {
     options = [
-      {text: '午休时间好好休息', tag: 'noon_rest'},
-      {text: '记得按时吃午饭', tag: 'lunch'},
-      {text: '下午课程加油', tag: 'afternoon_class'}
+      '午休时间好好休息',
+      '记得按时吃午饭',
+      '下午课程加油'
     ];
   } else if (currentSlot === 'afterNightStudy') {
     options = [
-      {text: '晚自习辛苦了，早点休息', tag: 'after_night_study'},
-      {text: '回宿舍路上注意安全', tag: 'safety'},
-      {text: '明天继续加油', tag: 'tomorrow'}
+      '晚自习辛苦了，早点休息',
+      '回宿舍路上注意安全',
+      '明天继续加油'
     ];
   } else if (currentSlot === 'night') {
     options = [
-      {text: '早点睡觉，明天还要上课', tag: 'sleep'},
-      {text: '晚安，做个好梦', tag: 'good_night'},
-      {text: '明天见，好好学习', tag: 'see_tomorrow'}
+      '早点睡觉，明天还要上课',
+      '晚安，做个好梦',
+      '明天见，好好学习'
     ];
   } else {
     options = [
-      {text: '好好学习，注意身体', tag: 'study_health'},
-      {text: '有困难及时联系', tag: 'contact'},
-      {text: '加油，我们支持你', tag: 'support'}
+      '好好学习，注意身体',
+      '有困难及时联系',
+      '加油，我们支持你'
     ];
   }
   
@@ -793,13 +672,12 @@ function generateChoices() {
   choicesContainer.innerHTML = '';
   
   // 生成新选项
-  options.forEach((opt, index) => {
+  options.forEach((text, index) => {
     const choice = document.createElement('div');
     choice.className = 'choice';
-    choice.dataset.text = opt.text;
-    choice.dataset.tag = opt.tag;
-    choice.textContent = `${String.fromCharCode(65 + index)}. ${opt.text}`;
-    choice.addEventListener('click', () => chooseOption(opt));
+    choice.dataset.text = text;
+    choice.textContent = `${String.fromCharCode(65 + index)}. ${text}`;
+    choice.addEventListener('click', () => chooseOption(text));
     choicesContainer.appendChild(choice);
   });
 }
@@ -809,11 +687,8 @@ function hideChoices() {
   choices.classList.remove('show');
 }
 
-function chooseOption(opt) {
-  sendParent(opt.text, {quote: opt.quote});
-  const summary = applyEffectByTag(opt.tag);
-  renderStatus();
-  showToast(summary || '已发送');
+function chooseOption(text) {
+  sendParent(text);
   hideChoices();
 }
 
@@ -878,18 +753,15 @@ function sendSuggestion() {
 
 /* ============= 状态更新 ============= */
 function updateStatusDisplay() {
-  // 资金状况
   document.getElementById('parentMoney').textContent = `¥${state.money.parent}`;
   document.getElementById('campusMoney').textContent = `¥${state.money.campus}`;
   document.getElementById('phoneMoney').textContent = `¥${state.money.tel}`;
   
-  // 关系状态
   document.getElementById('favorValue').textContent = state.rel.favor;
   document.getElementById('favorBar').style.width = state.rel.favor + '%';
   document.getElementById('trustValue').textContent = state.rel.trust;
   document.getElementById('trustBar').style.width = state.rel.trust + '%';
   
-  // 五维属性
   document.getElementById('studyValue').textContent = state.attrs.study;
   document.getElementById('studyBar').style.width = state.attrs.study + '%';
   document.getElementById('diligentValue').textContent = state.attrs.diligent;
@@ -900,57 +772,35 @@ function updateStatusDisplay() {
   document.getElementById('independentBar').style.width = state.attrs.independent + '%';
   document.getElementById('justiceValue').textContent = state.attrs.justice;
   document.getElementById('justiceBar').style.width = state.attrs.justice + '%';
-  
-  // MBTI渲染
-  renderMBTI();
-}
-
-// 渲染MBTI卡片
-function renderMBTI() {
-  if (!state.mbti) {
-    document.getElementById('mbtiCode').textContent = '暂未评估 MBTI';
-    return;
-  }
-  
-  document.getElementById('mbtiCode').textContent = state.mbti.code;
-  
-  // EI维度
-  const eiValue = state.mbti.traits.E;
-  document.getElementById('eiValue').textContent = eiValue + '%';
-  document.getElementById('eiBar').style.width = eiValue + '%';
-  
-  // SN维度
-  const snValue = state.mbti.traits.S;
-  document.getElementById('snValue').textContent = snValue + '%';
-  document.getElementById('snBar').style.width = snValue + '%';
-  
-  // TF维度
-  const tfValue = state.mbti.traits.T;
-  document.getElementById('tfValue').textContent = tfValue + '%';
-  document.getElementById('tfBar').style.width = tfValue + '%';
-  
-  // JP维度
-  const jpValue = state.mbti.traits.J;
-  document.getElementById('jpValue').textContent = jpValue + '%';
-  document.getElementById('jpBar').style.width = jpValue + '%';
 }
 
 /* ============= 事件监听 ============= */
 document.addEventListener('DOMContentLoaded', function() {
-  // 联系孩子页面 - 点击输入框显示选项
-  document.getElementById('messageInput').addEventListener('click', showChoices);
-  
-  // 家长群页面 - 选项和发送
-  document.getElementById('showGroupChoices').addEventListener('click', () => {
-    generateGroupChoices();
-    document.getElementById('choices').classList.add('show');
+  // 选项点击事件
+  document.querySelectorAll('.choice').forEach(choice => {
+    choice.addEventListener('click', () => chooseOption(choice.dataset.text));
   });
   
-  document.getElementById('sendGroupMessage').addEventListener('click', () => {
-    const input = document.getElementById('groupMessageInput');
+  // 显示选项按钮
+  document.getElementById('showChoices').addEventListener('click', showChoices);
+  
+  // 发送消息按钮
+  document.getElementById('sendMessage').addEventListener('click', () => {
+    const input = document.getElementById('messageInput');
     if (input.value.trim()) {
-      addGroupMsg('parentSelf', input.value);
+      sendParent(input.value);
       input.value = '';
+    }
+  });
+  
+  // 回车发送
+  document.getElementById('messageInput').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      const input = document.getElementById('messageInput');
+      if (input.value.trim()) {
+        sendParent(input.value);
+        input.value = '';
+      }
     }
   });
   
@@ -959,7 +809,6 @@ document.addEventListener('DOMContentLoaded', function() {
     modal.addEventListener('click', (e) => {
       if (e.target === modal) {
         modal.classList.remove('show');
-        document.body.classList.remove('modal-open');
       }
     });
   });
@@ -969,26 +818,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (e.key === 'Escape') {
       document.querySelectorAll('.modal.show').forEach(modal => {
         modal.classList.remove('show');
-        document.body.classList.remove('modal-open');
       });
-      document.getElementById('choices').classList.remove('show');
-    }
-  });
-  
-  // 软键盘处理
-  document.addEventListener('focusin', (e) => {
-    if (e.target.matches('input, textarea')) {
-      document.body.classList.add('modal-open');
-    }
-  });
-  
-  document.addEventListener('focusout', (e) => {
-    if (e.target.matches('input, textarea')) {
-      setTimeout(() => {
-        if (!document.activeElement.matches('input, textarea')) {
-          document.body.classList.remove('modal-open');
-        }
-      }, 100);
     }
   });
   
@@ -996,52 +826,7 @@ document.addEventListener('DOMContentLoaded', function() {
   updateTimeIndicator();
   updateStatusDisplay();
   renderDM();
-  renderGroup();
 });
-
-// 家长群消息功能
-function addGroupMsg(from, text) {
-  const id = Date.now() + Math.random();
-  state.group.push({ id, from, text, ts: Date.now() });
-  renderGroup();
-}
-
-function renderGroup() {
-  const container = document.querySelector('.group-content');
-  container.innerHTML = '';
-  
-  state.group.forEach(msg => {
-    const div = document.createElement('div');
-    div.className = 'group-msg ' + msg.from;
-    div.innerHTML = `
-      <div>${msg.text}</div>
-      <div class="group-time">${formatTime(msg.ts)}</div>
-    `;
-    container.appendChild(div);
-  });
-}
-
-function generateGroupChoices() {
-  const choicesContainer = document.getElementById('choices');
-  const options = [
-    {text: '收到，我们会配合老师的工作', tag: 'cooperate'},
-    {text: '谢谢老师提醒，我们会督促孩子', tag: 'supervise'},
-    {text: '好的，我们知道了', tag: 'acknowledge'}
-  ];
-  
-  choicesContainer.innerHTML = '';
-  options.forEach((opt, index) => {
-    const choice = document.createElement('div');
-    choice.className = 'choice';
-    choice.dataset.text = opt.text;
-    choice.textContent = `${String.fromCharCode(65 + index)}. ${opt.text}`;
-    choice.addEventListener('click', () => {
-      addGroupMsg('parentSelf', opt.text);
-      choicesContainer.classList.remove('show');
-    });
-    choicesContainer.appendChild(choice);
-  });
-}
 
 /* ============= 时间段控制（测试用） ============= */
 function setTimeSlot(slot) {
@@ -1082,78 +867,16 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     box.textContent = msg;
   };
-  
-  const info = msg=>{
-    console.log('ℹ️ ' + msg);
-  };
-  
   if(!host) return;
-  
-  // 1) 家长群必须有输入条
-  if(document.querySelector('.page-group')){
-    const gb = document.querySelector('.page-group .chat-input');
-    if(!gb) warn('❌ 家长群缺少输入条（.page-group 内未找到 .chat-input）');
-  }
-
-  // 2) 联系孩子输入必须只读 & 会弹选项
-  const dmInput = document.querySelector('.page-contact .chat-input input');
-  if(dmInput && !dmInput.readOnly) warn('❌ 联系孩子输入框必须只读（点击后弹出 3 个选项）');
-
-  // 3) 回执位置规则
-  const myAcks = document.querySelectorAll('.msg.me .ack');
-  if(myAcks.length>1) warn('❌ 回执只能出现在"我方最后一条"气泡内');
-  
-  // 4) 引用块样式存在性
-  if(document.querySelector('.msg .quote')){
-    const hasTag = !!document.querySelector('.msg .quote .q-tag');
-    const hasBody= !!document.querySelector('.msg .quote .q-body');
-    if(!hasTag || !hasBody) warn('❌ 引用块结构不完整（缺 q-tag 或 q-body）');
-  }
-
-  // 5) 时间与回执不重叠（通过计算矩形是否重叠的近似检查）
-  (function(){
-    const ack = document.querySelector('.msg.me:last-of-type .ack');
-    const time= document.querySelector('.msg.me:last-of-type .time');
-    if(ack && time){
-      const r1 = ack.getBoundingClientRect();
-      const r2 = time.getBoundingClientRect();
-      const overlap = !(r1.right < r2.left || r1.left > r2.right || r1.bottom < r2.top || r1.top > r2.bottom);
-      if(overlap) warn('❌ 时间与回执发生重叠');
-    }
-  })();
-
-  // 6) 层级规范
-  const z = (sel)=> parseInt(getComputedStyle(document.querySelector(sel)||document.body).zIndex||'0',10);
-  if(z('.modal') <= 1000) warn('❌ modal z-index 应为 1100 以上');
-  if(z('.choices') >= z('.notification')) warn('❌ choices 不应高于 notification');
-
-  // 7) MBTI 卡片存在且安全降级
-  if(!document.querySelector('.mbti-card')){
-    info('ℹ️ 未发现 .mbti-card，检查是否走了占位文案逻辑');
-  }
-
-  // 8) 列表底部留白足够（避免被输入条遮挡）
-  (function(){
-    const list = document.querySelector('.chat-list');
-    const input = document.querySelector('.chat-input');
-    if(list && input){
-      const ok = parseInt(getComputedStyle(list).paddingBottom,10) >= 60;
-      if(!ok) warn('❌ chat-list padding-bottom 不足，可能被输入条遮挡');
-    }
-  })();
-
-  // 9) 选择项互斥（不应同时有两组）
-  if(document.querySelectorAll('.choices .group').length > 1){
-    warn('❌ 发现多组 choices，请确保同一时刻仅一组选项可见');
-  }
-  
-  // 原始测试
   const ib = document.querySelector('.chat-input');
-  if(!ib || getComputedStyle(ib).position!=='fixed') 
-    warn('❌ 输入条必须固定定位在底部');
+  if(!ib || getComputedStyle(ib).position!=='absolute') 
+    return warn('❌ 输入条必须绝对定位在 .phone 内部底部');
   const ch = document.querySelectorAll('.choices .choice');
   if(ch.length && ch.length!==3) 
-    warn('❌ 选项必须 3 个，且只显示一组（ABC）');
+    return warn('❌ 选项必须 3 个，且只显示一组（123）');
+  const myAcks = document.querySelectorAll('.msg.me .ack');
+  if(myAcks.length>1) 
+    return warn('❌ 回执只能出现在"我方最后一条"气泡内');
 })();
 </script>
 
