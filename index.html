@@ -164,6 +164,7 @@
         <ul id="chatList" class="chat-list"></ul>
       </div>
       <div class="chat-input">
+        <button id="showSuggestions" class="btn" style="background:#8B5CF6;color:#fff;border-color:#8B5CF6">💡 建议</button>
         <input id="messageInput" class="input" type="text" placeholder="点击选择消息..." readonly style="flex:1;border:1px solid #E5E7EB;border-radius:10px;height:38px;padding:0 10px;font:14px system-ui;color:#111827;background:#fff" />
         <button id="sendMessage" class="btn" disabled>发送</button>
       </div>
@@ -178,7 +179,6 @@
         <button class="action-btn" onclick="openModal('mailModal')">📦 邮寄物品</button>
         <button class="action-btn" onclick="openModal('campusCardModal')">💳 校园卡充值</button>
         <button class="action-btn" onclick="openModal('phoneCardModal')">📱 电话卡充值</button>
-        <button class="action-btn" onclick="openModal('suggestionModal')">💡 提供建议</button>
       </div>
     </div>
 
@@ -508,7 +508,11 @@ const EFFECTS_BY_TAG = {
   see_tomorrow: { study: +1, favor: +1 },
   study_health: { study: +1, favor: +1 },
   contact: { trust: +1, favor: +1 },
-  support: { favor: +2, trust: +1 }
+  support: { favor: +2, trust: +1 },
+  // 建议标签
+  suggestion_study_plan: { study: +1, diligent: +1, trust: +1 },
+  suggestion_social: { social: +1, favor: +1 },
+  suggestion_health: { favor: +1, trust: +1 }
 };
 
 // 根据标签应用属性变化
@@ -752,6 +756,19 @@ function showChoices() {
   document.querySelector('.phone').classList.add('modal-open');
 }
 
+function showSuggestions() {
+  // 先关闭其他overlay
+  closeAllOverlays();
+  
+  generateSuggestions();
+  const choices = document.getElementById('choices');
+  choices.classList.add('show');
+  
+  // 添加锁定
+  document.body.classList.add('modal-lock');
+  document.querySelector('.phone').classList.add('modal-open');
+}
+
 function generateChoices() {
   const choicesContainer = document.getElementById('choices');
   const currentSlot = state.slot;
@@ -796,6 +813,31 @@ function generateChoices() {
   
   // 生成新选项
   options.forEach((opt, index) => {
+    const choice = document.createElement('div');
+    choice.className = 'choice';
+    choice.dataset.text = opt.text;
+    choice.dataset.tag = opt.tag;
+    choice.textContent = `${String.fromCharCode(65 + index)}. ${opt.text}`;
+    choice.addEventListener('click', () => chooseOption(opt));
+    choicesContainer.appendChild(choice);
+  });
+}
+
+function generateSuggestions() {
+  const choicesContainer = document.getElementById('choices');
+  
+  // 根据当前状态生成建议选项
+  const suggestions = [
+    {text: '建议制定一个学习计划，合理安排时间', tag: 'suggestion_study_plan'},
+    {text: '建议多和同学交流，培养社交能力', tag: 'suggestion_social'},
+    {text: '建议保持规律作息，注意身体健康', tag: 'suggestion_health'}
+  ];
+  
+  // 清空现有选项
+  choicesContainer.innerHTML = '';
+  
+  // 生成建议选项
+  suggestions.forEach((opt, index) => {
     const choice = document.createElement('div');
     choice.className = 'choice';
     choice.dataset.text = opt.text;
@@ -988,6 +1030,9 @@ function renderMBTI() {
 document.addEventListener('DOMContentLoaded', function() {
   // 联系孩子页面 - 点击输入框显示选项
   document.getElementById('messageInput').addEventListener('click', showChoices);
+  
+  // 建议按钮
+  document.getElementById('showSuggestions').addEventListener('click', showSuggestions);
   
   // 家长群页面 - 选项和发送
   document.getElementById('showGroupChoices').addEventListener('click', () => {
