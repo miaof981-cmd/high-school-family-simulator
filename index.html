@@ -115,12 +115,13 @@
   
   /* 层级统一 */
   .modal{z-index:1100}
+  .choices{z-index:1050}
   .attribute-feedback,.notification,.toast{z-index:900}
-  .choices{z-index:100}
   .chat-area{z-index:1}
   
-  /* 软键盘处理 */
-  body.modal-open{overflow:hidden}
+  /* 软键盘和遮罩处理 */
+  body.modal-lock{overflow:hidden}
+  .modal-open *:not(.modal):not(.modal *):not(.choices):not(.choices *){pointer-events:none}
 </style>
 </head>
 <body>
@@ -745,9 +746,16 @@ function showToast(msg) {
 
 /* ============= 选项功能 ============= */
 function showChoices() {
+  // 先关闭其他overlay
+  closeAllOverlays();
+  
   generateChoices();
   const choices = document.getElementById('choices');
   choices.classList.add('show');
+  
+  // 添加锁定
+  document.body.classList.add('modal-lock');
+  document.querySelector('.phone').classList.add('modal-open');
 }
 
 function generateChoices() {
@@ -807,6 +815,10 @@ function generateChoices() {
 function hideChoices() {
   const choices = document.getElementById('choices');
   choices.classList.remove('show');
+  
+  // 移除锁定
+  document.body.classList.remove('modal-lock');
+  document.querySelector('.phone').classList.remove('modal-open');
 }
 
 function chooseOption(opt) {
@@ -817,8 +829,23 @@ function chooseOption(opt) {
   hideChoices();
 }
 
+/* ============= 统一overlay关闭 ============= */
+function closeAllOverlays() {
+  // 关闭所有弹窗和选项面板
+  document.querySelectorAll('.modal,.choices').forEach(el => el.classList.remove('show'));
+  
+  // 移除body锁定
+  document.body.classList.remove('modal-lock');
+  
+  // 移除phone锁定
+  document.querySelector('.phone')?.classList.remove('modal-open');
+}
+
 /* ============= 标签页切换 ============= */
 function switchTab(tab) {
+  // 先关闭所有overlay
+  closeAllOverlays();
+  
   // 更新导航状态
   document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
   event.target.closest('.nav-item').classList.add('active');
@@ -848,11 +875,23 @@ function switchTab(tab) {
 
 /* ============= 弹窗功能 ============= */
 function openModal(modalId) {
+  // 先关闭其他overlay
+  closeAllOverlays();
+  
+  // 打开新弹窗
   document.getElementById(modalId).classList.add('show');
+  
+  // 添加锁定
+  document.body.classList.add('modal-lock');
+  document.querySelector('.phone').classList.add('modal-open');
 }
 
 function closeModal(modalId) {
   document.getElementById(modalId).classList.remove('show');
+  
+  // 移除锁定
+  document.body.classList.remove('modal-lock');
+  document.querySelector('.phone').classList.remove('modal-open');
 }
 
 function sendMail() {
@@ -974,20 +1013,15 @@ document.addEventListener('DOMContentLoaded', function() {
   document.querySelectorAll('.modal').forEach(modal => {
     modal.addEventListener('click', (e) => {
       if (e.target === modal) {
-        modal.classList.remove('show');
-        document.body.classList.remove('modal-open');
+        closeAllOverlays();
       }
     });
   });
   
-  // ESC关闭弹窗
+  // ESC关闭所有overlay
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
-      document.querySelectorAll('.modal.show').forEach(modal => {
-        modal.classList.remove('show');
-        document.body.classList.remove('modal-open');
-      });
-      document.getElementById('choices').classList.remove('show');
+      closeAllOverlays();
     }
   });
   
