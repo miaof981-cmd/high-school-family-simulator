@@ -1,0 +1,815 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+<title>高中家校生活模拟器 v2</title>
+<style>
+  /* ============= B. UI 规范（强制） ============= */
+  .phone{position:relative;width:390px;height:780px;margin:24px auto;background:#fff;
+         border:2px solid #D8DCE1;border-radius:24px;overflow:hidden}
+  .phone .main{position:absolute;left:0;right:0;top:52px;bottom:64px;overflow:hidden}
+  .phone nav{position:absolute;left:0;right:0;bottom:0;height:64px;background:#fff;border-top:1px solid #ECEFF3}
+
+  /* 顶部条 */
+  .topbar{position:absolute;left:0;right:0;top:0;height:52px;display:flex;align-items:center;justify-content:center;
+          background:#FFFFFF;border-bottom:1px solid #ECEFF3;font:14px/1.2 system-ui;color:#4B5563}
+
+  /* 导航栏 */
+  .nav{display:flex;height:100%}
+  .nav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;font:11px/1.2 system-ui;color:#6B7280;cursor:pointer;transition:color 0.2s}
+  .nav-item.active{color:#3B82F6}
+  .nav-item .icon{font-size:18px;margin-bottom:2px}
+
+  /* 页面容器 */
+  .page{position:absolute;left:0;right:0;top:0;bottom:0;display:none;overflow:hidden}
+  .page.active{display:block}
+
+  /* 聊天页 */
+  .chat-area{position:absolute;left:0;right:0;top:0;bottom:60px;overflow:auto;padding:12px 10px;background:#F7F8FA}
+  .chat-input{position:absolute;left:0;right:0;bottom:0;height:60px;display:flex;gap:8px;padding:10px;background:#fff;border-top:1px solid #ECEFF3}
+  .msg{max-width:78%;margin:8px 10px;padding:10px 12px;border-radius:14px;position:relative;line-height:1.4;background:#EEF1F6;
+       word-break:break-word;overflow-wrap:anywhere;}
+  .msg.me{margin-left:auto;background:#DCF8C6}
+  .msg .time{position:absolute;bottom:6px;font-size:11px;color:#8A8F99}
+  .msg.me .time{right:8px}.msg.other .time{left:8px}
+  .msg.me .ack{position:absolute;right:8px;bottom:6px;font-size:11px;color:#8A8F99} /* 回执在气泡内右下角 */
+  .msg.system{margin:6px auto;background:#F3F5F9;color:#6B7280;font-size:12px}
+
+  /* 选项样式 */
+  .choices{position:absolute;left:0;right:0;bottom:60px;background:#fff;border-top:1px solid #ECEFF3;padding:10px;display:none}
+  .choices.show{display:block}
+  .choice{display:block;width:100%;padding:12px;margin:4px 0;border:1px solid #E5E7EB;border-radius:8px;background:#fff;font:14px/1.4 system-ui;color:#374151;cursor:pointer;text-align:left}
+  .choice:hover{background:#F9FAFB}
+  .choice:active{transform:translateY(1px)}
+
+  /* 状态页 */
+  .status-content{padding:16px;overflow:auto;height:100%}
+  .status-section{margin-bottom:20px;padding:12px;background:#F9FAFB;border-radius:8px}
+  .status-title{font:16px/1.4 system-ui;color:#111827;margin-bottom:8px;font-weight:600}
+  .status-item{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #E5E7EB}
+  .status-item:last-child{border-bottom:none}
+  .status-label{font:14px/1.4 system-ui;color:#6B7280}
+  .status-value{font:14px/1.4 system-ui;color:#111827;font-weight:500}
+  .progress-bar{width:100px;height:6px;background:#E5E7EB;border-radius:3px;overflow:hidden}
+  .progress-fill{height:100%;background:#3B82F6;transition:width 0.3s}
+
+  /* 操作页 */
+  .actions-content{padding:16px;overflow:auto;height:100%}
+  .action-btn{display:block;width:100%;padding:16px;margin:8px 0;border:1px solid #D1D5DB;border-radius:10px;background:#fff;font:14px/1.4 system-ui;color:#374151;cursor:pointer;text-align:left}
+  .action-btn:hover{background:#F9FAFB}
+  .action-btn:active{transform:translateY(1px)}
+
+  /* 弹窗 */
+  .modal{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.35);z-index:1100}
+  .modal.show{display:flex}
+  .modal-content{background:#fff;border-radius:12px;padding:20px;margin:20px;max-width:320px;width:100%}
+  .modal-title{font:18px/1.4 system-ui;color:#111827;margin-bottom:16px;font-weight:600}
+  .modal-input{width:100%;padding:10px;border:1px solid #D1D5DB;border-radius:8px;font:14px system-ui;margin-bottom:12px}
+  .modal-buttons{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+  .btn{display:inline-flex;align-items:center;justify-content:center;border:1px solid #D1D5DB;border-radius:8px;height:36px;padding:0 16px;font:14px system-ui;color:#374151;background:#fff;cursor:pointer}
+  .btn.primary{background:#3B82F6;color:#fff;border-color:#3B82F6}
+  .btn:active{transform:translateY(1px)}
+
+  /* 时间段指示器 */
+  .time-indicator{position:absolute;left:0;right:0;top:0;height:52px;display:flex;align-items:center;justify-content:center;font:12px/1.2 system-ui;color:#6B7280;background:#F9FAFB;border-bottom:1px solid #E5E7EB}
+  .time-indicator.quiet{color:#EF4444}
+  .time-indicator.chat{color:#10B981}
+
+  /* 群聊页 */
+  .group-content{padding:16px;overflow:auto;height:100%}
+  .group-msg{max-width:85%;margin:8px 0;padding:10px 12px;border-radius:14px;line-height:1.4;background:#EEF1F6;word-break:break-word}
+  .group-msg.teacher{background:#E0F2FE;border-left:3px solid #0EA5E9}
+  .group-msg.parent{background:#F3E8FF;border-left:3px solid #8B5CF6}
+  .group-msg.self{background:#DCF8C6;margin-left:auto;text-align:right}
+  .group-time{font-size:11px;color:#8A8F99;margin-top:4px}
+
+  .attribute-feedback,.notification{z-index:900} /* 永远低于 modal */
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <!-- 时间段指示器 -->
+  <div id="timeIndicator" class="time-indicator">
+    <span id="timeText">上课中</span>
+  </div>
+
+  <!-- 主内容区 -->
+  <div class="main">
+    <!-- 家长群页面 -->
+    <div id="groupPage" class="page active">
+      <div class="group-content">
+        <div class="group-msg teacher">
+          <div>各位家长好，今天数学小测成绩已公布，请关注孩子学习状态。</div>
+          <div class="group-time">14:30</div>
+        </div>
+        <div class="group-msg parent">
+          <div>谢谢老师提醒，我们会督促孩子认真复习的。</div>
+          <div class="group-time">14:32</div>
+        </div>
+        <div class="group-msg self">
+          <div>收到，我们会配合老师的工作。</div>
+          <div class="group-time">14:35</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 联系孩子页面 -->
+    <div id="contactPage" class="page">
+      <div id="chat" class="chat-area"></div>
+      <div class="chat-input">
+        <button id="showChoices" class="btn">选择消息</button>
+        <input id="messageInput" class="input" type="text" placeholder="输入消息..." style="flex:1;border:1px solid #E5E7EB;border-radius:10px;height:38px;padding:0 10px;font:14px system-ui;color:#111827;background:#fff" />
+        <button id="sendMessage" class="btn">发送</button>
+      </div>
+      <div id="choices" class="choices">
+        <div class="choice" data-text="早点休息，别太晚了">A. 早点休息，别太晚了</div>
+        <div class="choice" data-text="明天想不想去问下老师？">B. 明天想不想去问下老师？</div>
+        <div class="choice" data-text="记得按时吃饭">C. 记得按时吃饭</div>
+      </div>
+    </div>
+
+    <!-- 家长操作页面 -->
+    <div id="actionsPage" class="page">
+      <div class="actions-content">
+        <button class="action-btn" onclick="openModal('mailModal')">📦 邮寄物品</button>
+        <button class="action-btn" onclick="openModal('campusCardModal')">💳 校园卡充值</button>
+        <button class="action-btn" onclick="openModal('phoneCardModal')">📱 电话卡充值</button>
+        <button class="action-btn" onclick="openModal('suggestionModal')">💡 提供建议</button>
+      </div>
+    </div>
+
+    <!-- 孩子状态页面 -->
+    <div id="statusPage" class="page">
+      <div class="status-content">
+        <div class="status-section">
+          <div class="status-title">💰 资金状况</div>
+          <div class="status-item">
+            <span class="status-label">家长资金</span>
+            <span class="status-value" id="parentMoney">¥2000</span>
+          </div>
+          <div class="status-item">
+            <span class="status-label">校园卡余额</span>
+            <span class="status-value" id="campusMoney">¥120</span>
+          </div>
+          <div class="status-item">
+            <span class="status-label">电话卡余额</span>
+            <span class="status-value" id="phoneMoney">¥20</span>
+          </div>
+        </div>
+
+        <div class="status-section">
+          <div class="status-title">❤️ 关系状态</div>
+          <div class="status-item">
+            <span class="status-label">好感度</span>
+            <div style="display:flex;align-items:center;gap:8px">
+              <div class="progress-bar"><div class="progress-fill" id="favorBar" style="width:50%"></div></div>
+              <span class="status-value" id="favorValue">50</span>
+            </div>
+          </div>
+          <div class="status-item">
+            <span class="status-label">信任度</span>
+            <div style="display:flex;align-items:center;gap:8px">
+              <div class="progress-bar"><div class="progress-fill" id="trustBar" style="width:50%"></div></div>
+              <span class="status-value" id="trustValue">50</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="status-section">
+          <div class="status-title">📊 五维属性</div>
+          <div class="status-item">
+            <span class="status-label">学习</span>
+            <div style="display:flex;align-items:center;gap:8px">
+              <div class="progress-bar"><div class="progress-fill" id="studyBar" style="width:62%"></div></div>
+              <span class="status-value" id="studyValue">62</span>
+            </div>
+          </div>
+          <div class="status-item">
+            <span class="status-label">勤奋</span>
+            <div style="display:flex;align-items:center;gap:8px">
+              <div class="progress-bar"><div class="progress-fill" id="diligentBar" style="width:58%"></div></div>
+              <span class="status-value" id="diligentValue">58</span>
+            </div>
+          </div>
+          <div class="status-item">
+            <span class="status-label">社交</span>
+            <div style="display:flex;align-items:center;gap:8px">
+              <div class="progress-bar"><div class="progress-fill" id="socialBar" style="width:40%"></div></div>
+              <span class="status-value" id="socialValue">40</span>
+            </div>
+          </div>
+          <div class="status-item">
+            <span class="status-label">独立</span>
+            <div style="display:flex;align-items:center;gap:8px">
+              <div class="progress-bar"><div class="progress-fill" id="independentBar" style="width:70%"></div></div>
+              <span class="status-value" id="independentValue">70</span>
+            </div>
+          </div>
+          <div class="status-item">
+            <span class="status-label">正义</span>
+            <div style="display:flex;align-items:center;gap:8px">
+              <div class="progress-bar"><div class="progress-fill" id="justiceBar" style="width:0%"></div></div>
+              <span class="status-value" id="justiceValue">0</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 导航栏 -->
+  <nav class="nav">
+    <div class="nav-item active" onclick="switchTab('group')">
+      <div class="icon">👥</div>
+      <div>家长群</div>
+    </div>
+    <div class="nav-item" onclick="switchTab('contact')">
+      <div class="icon">💬</div>
+      <div>联系孩子</div>
+    </div>
+    <div class="nav-item" onclick="switchTab('actions')">
+      <div class="icon">⚙️</div>
+      <div>家长操作</div>
+    </div>
+    <div class="nav-item" onclick="switchTab('status')">
+      <div class="icon">📊</div>
+      <div>孩子状态</div>
+    </div>
+  </nav>
+
+  <!-- 弹窗 -->
+  <div id="mailModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-title">邮寄物品</div>
+      <select class="modal-input" id="mailType">
+        <option value="snacks">零食</option>
+        <option value="clothes">衣物</option>
+        <option value="books">书籍</option>
+        <option value="medicine">药品</option>
+      </select>
+      <input class="modal-input" type="text" placeholder="备注信息" id="mailNote" />
+      <div class="modal-buttons">
+        <button class="btn" onclick="closeModal('mailModal')">取消</button>
+        <button class="btn primary" onclick="sendMail()">邮寄</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="campusCardModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-title">校园卡充值</div>
+      <input class="modal-input" type="number" placeholder="充值金额" id="campusAmount" />
+      <div class="modal-buttons">
+        <button class="btn" onclick="closeModal('campusCardModal')">取消</button>
+        <button class="btn primary" onclick="rechargeCampusCard()">充值</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="phoneCardModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-title">电话卡充值</div>
+      <input class="modal-input" type="number" placeholder="充值金额" id="phoneAmount" />
+      <div class="modal-buttons">
+        <button class="btn" onclick="closeModal('phoneCardModal')">取消</button>
+        <button class="btn primary" onclick="rechargePhoneCard()">充值</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="suggestionModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-title">提供建议</div>
+      <textarea class="modal-input" placeholder="输入建议内容" id="suggestionText" style="height:80px;resize:none"></textarea>
+      <div class="modal-buttons">
+        <button class="btn" onclick="closeModal('suggestionModal')">取消</button>
+        <button class="btn primary" onclick="sendSuggestion()">发送</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============= C. 数据模型 ============= */
+const state = {
+  slot: 'class', // class | noonBreak | nightStudy | afterNightStudy | night
+  testMode: false,
+
+  // 资金
+  money: { parent: 2000, campus: 120, tel: 20 },
+
+  // 关系
+  rel: { favor: 50, trust: 50 },
+
+  // 属性（0-100）
+  attrs: { study: 62, diligent: 58, social: 40, independent: 70, justice: 0 },
+
+  // 会话
+  group: [
+    {id: 1, from: 'teacher', text: '各位家长好，今天数学小测成绩已公布，请关注孩子学习状态。', ts: Date.now() - 300000},
+    {id: 2, from: 'parentOther', text: '谢谢老师提醒，我们会督促孩子认真复习的。', ts: Date.now() - 280000},
+    {id: 3, from: 'parentSelf', text: '收到，我们会配合老师的工作。', ts: Date.now() - 250000}
+  ],
+  dm: [
+    {id: 1, from: 'child', text: '（示例）今天数学小测，还算顺利～', ts: Date.now() - 600000, status: 'read'}
+  ],
+
+  // 队列：安静时段家长发出的"已送达未读"
+  unreadForChild: [],
+
+  // UI
+  activeTab: 'group',
+  choicesStyle: 'alpha' // 'alpha' or 'numeric'
+};
+
+let timers = [];
+
+/* ============= 时间段状态机 ============= */
+function after(ms, fn) { 
+  const t = setTimeout(fn, ms); 
+  timers.push(t); 
+  return t; 
+}
+
+function clearAllTimers() { 
+  timers.forEach(clearTimeout); 
+  timers = []; 
+}
+
+function setSlot(next) {
+  if (state.slot === next) return;
+  clearAllTimers();
+  state.slot = next;
+  updateTimeIndicator();
+
+  // 安静->可聊：开场白 + flush 未读
+  if (next === 'noonBreak' || next === 'afterNightStudy') {
+    const opening = next === 'noonBreak' ? '我现在午休啦～' : '我现在下晚自习啦～';
+    addDM('child', opening, 'read');
+    flushUnreadWithQuotedReplies();
+  }
+}
+
+async function flushUnreadWithQuotedReplies() {
+  const ids = [...state.unreadForChild];
+  state.unreadForChild = [];
+  
+  for (let i = 0; i < ids.length; i++) {
+    const pid = ids[i];
+    markReadUpTo(pid);
+    
+    // 延迟发送回复，模拟逐条处理
+    await new Promise(resolve => setTimeout(resolve, 600 + i * 800));
+    
+    const parentMsg = state.dm.find(m => m.id === pid);
+    if (parentMsg) {
+      const reply = await autoReplyFor(pid);
+      addDM('child', `> 引用：${parentMsg.text}\n${reply}`, {refId: pid});
+    }
+  }
+}
+
+function updateTimeIndicator() {
+  const indicator = document.getElementById('timeIndicator');
+  const timeText = document.getElementById('timeText');
+  const timeMap = {
+    'class': '上课中',
+    'noonBreak': '午休时间',
+    'nightStudy': '晚自习',
+    'afterNightStudy': '下晚自习',
+    'night': '就寝时间'
+  };
+  
+  timeText.textContent = timeMap[state.slot] || '未知状态';
+  
+  if (isQuiet()) {
+    indicator.className = 'time-indicator quiet';
+  } else {
+    indicator.className = 'time-indicator chat';
+  }
+}
+
+/* ============= 私聊功能 ============= */
+function addDM(from, text, {status = 'delivered', refId = null} = {}) {
+  const id = Date.now() + Math.random();
+  state.dm.push({ id, from, text, ts: Date.now(), status, refId });
+  renderDM();
+  return id;
+}
+
+function sendParent(text) {
+  const id = addDM('parent', text, {status: 'delivered'});
+  
+  // 根据消息内容影响数值
+  applyMessageEffect(text);
+  
+  if (isQuiet()) {
+    state.unreadForChild.push(id);
+    addDM('system', quietTip(state.slot));
+  } else {
+    after(300, () => markReadUpTo(id));
+    after(800, () => addDM('child', autoReplyFor(id), {refId: id}));
+  }
+}
+
+function applyMessageEffect(text) {
+  // 根据消息内容调整属性
+  if (text.includes('休息') || text.includes('睡觉')) {
+    state.rel.favor += 1;
+    state.attrs.diligent += 1;
+  } else if (text.includes('学习') || text.includes('老师') || text.includes('复习')) {
+    state.attrs.study += 1;
+    state.rel.trust += 1;
+  } else if (text.includes('吃饭') || text.includes('营养')) {
+    state.rel.favor += 1;
+    state.attrs.social += 1;
+  } else if (text.includes('注意安全') || text.includes('小心')) {
+    state.rel.favor += 2;
+    state.attrs.justice += 1;
+  }
+  
+  // 确保数值在0-100范围内
+  state.rel.favor = Math.max(0, Math.min(100, state.rel.favor));
+  state.rel.trust = Math.max(0, Math.min(100, state.rel.trust));
+  Object.keys(state.attrs).forEach(key => {
+    state.attrs[key] = Math.max(0, Math.min(100, state.attrs[key]));
+  });
+  
+  updateStatusDisplay();
+}
+
+function markReadUpTo(id) {
+  state.dm.forEach(m => {
+    if (m.from === 'parent' && m.id <= id) m.status = 'read';
+  });
+  renderDM();
+}
+
+const isQuiet = () => !['noonBreak', 'afterNightStudy'].includes(state.slot) && !state.testMode;
+
+function quietTip(slot) {
+  if (slot === 'class') return '孩子在上课，暂时无法回复。';
+  if (slot === 'nightStudy') return '孩子在晚自习，稍后统一回复。';
+  if (slot === 'night') return '孩子已就寝，明早才能看到消息。';
+  return '孩子暂时无法回复。';
+}
+
+async function autoReplyFor(parentId) {
+  const parentMsg = state.dm.find(m => m.id === parentId);
+  if (!parentMsg) return '好的，我知道了。';
+  
+  try {
+    // 调用AI接口生成回复
+    const response = await fetch('https://dmxapi.cn/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer sk-9ANtPqUHF4aLqKvE2U714fbvpj3Rk4UUEzfSobmUk0C1ZMd4'
+      },
+      body: JSON.stringify({
+        role: 'child',
+        context: {
+          favor: state.rel.favor,
+          trust: state.rel.trust,
+          attrs: state.attrs,
+          money: state.money,
+          lastMessages: [parentMsg.text]
+        }
+      })
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      return data.reply || '好的，我知道了。';
+    }
+  } catch (error) {
+    console.log('AI接口调用失败，使用默认回复');
+  }
+  
+  // 兜底回复逻辑，基于数值系统
+  const replies = generateSmartReply(parentMsg.text);
+  return replies[Math.floor(Math.random() * replies.length)];
+}
+
+function generateSmartReply(parentText) {
+  const { favor, trust } = state.rel;
+  const { study, diligent, social, independent, justice } = state.attrs;
+  
+  // 基于好感度和信任度的回复
+  if (favor >= 70) {
+    return [
+      '好的妈妈，我会注意的～',
+      '嗯嗯，谢谢关心！',
+      '收到，我会照做的！'
+    ];
+  } else if (favor >= 40) {
+    return [
+      '好的，我知道了。',
+      '嗯嗯，我会注意的。',
+      '收到，谢谢关心。'
+    ];
+  } else {
+    return [
+      '知道了。',
+      '嗯。',
+      '好的。'
+    ];
+  }
+}
+
+function renderDM() {
+  const wrap = document.getElementById('chat');
+  wrap.innerHTML = '';
+  
+  state.dm.forEach(m => {
+    const div = document.createElement('div');
+    div.className = 'msg ' + (m.from === 'child' ? 'other' : (m.from === 'parent' ? 'me' : 'system'));
+    div.textContent = m.text;
+    
+    if (m.from !== 'system') {
+      const t = document.createElement('div');
+      t.className = 'time';
+      const d = new Date(m.ts);
+      t.textContent = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+      div.appendChild(t);
+      
+      // 回执只显示在家长最后一条消息
+      if (m.from === 'parent') {
+        const isLastParent = state.dm.filter(msg => msg.from === 'parent').pop() === m;
+        if (isLastParent) {
+          const ack = document.createElement('div');
+          ack.className = 'ack';
+          ack.textContent = m.status === 'delivered' ? '已送达' : '已读';
+          div.appendChild(ack);
+        }
+      }
+    }
+    
+    wrap.appendChild(div);
+  });
+  
+  wrap.scrollTop = wrap.scrollHeight + 999;
+}
+
+/* ============= 选项功能 ============= */
+function showChoices() {
+  generateChoices();
+  const choices = document.getElementById('choices');
+  choices.classList.add('show');
+}
+
+function generateChoices() {
+  const choicesContainer = document.getElementById('choices');
+  const currentSlot = state.slot;
+  
+  // 根据时间段和当前状态生成不同的选项
+  let options = [];
+  
+  if (currentSlot === 'class' || currentSlot === 'nightStudy') {
+    options = [
+      '好好学习，注意休息',
+      '有不懂的及时问老师',
+      '晚自习加油，早点回宿舍'
+    ];
+  } else if (currentSlot === 'noonBreak') {
+    options = [
+      '午休时间好好休息',
+      '记得按时吃午饭',
+      '下午课程加油'
+    ];
+  } else if (currentSlot === 'afterNightStudy') {
+    options = [
+      '晚自习辛苦了，早点休息',
+      '回宿舍路上注意安全',
+      '明天继续加油'
+    ];
+  } else if (currentSlot === 'night') {
+    options = [
+      '早点睡觉，明天还要上课',
+      '晚安，做个好梦',
+      '明天见，好好学习'
+    ];
+  } else {
+    options = [
+      '好好学习，注意身体',
+      '有困难及时联系',
+      '加油，我们支持你'
+    ];
+  }
+  
+  // 清空现有选项
+  choicesContainer.innerHTML = '';
+  
+  // 生成新选项
+  options.forEach((text, index) => {
+    const choice = document.createElement('div');
+    choice.className = 'choice';
+    choice.dataset.text = text;
+    choice.textContent = `${String.fromCharCode(65 + index)}. ${text}`;
+    choice.addEventListener('click', () => chooseOption(text));
+    choicesContainer.appendChild(choice);
+  });
+}
+
+function hideChoices() {
+  const choices = document.getElementById('choices');
+  choices.classList.remove('show');
+}
+
+function chooseOption(text) {
+  sendParent(text);
+  hideChoices();
+}
+
+/* ============= 标签页切换 ============= */
+function switchTab(tab) {
+  // 更新导航状态
+  document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+  event.target.closest('.nav-item').classList.add('active');
+  
+  // 更新页面显示
+  document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
+  document.getElementById(tab + 'Page').classList.add('active');
+  
+  state.activeTab = tab;
+}
+
+/* ============= 弹窗功能 ============= */
+function openModal(modalId) {
+  document.getElementById(modalId).classList.add('show');
+}
+
+function closeModal(modalId) {
+  document.getElementById(modalId).classList.remove('show');
+}
+
+function sendMail() {
+  const type = document.getElementById('mailType').value;
+  const note = document.getElementById('mailNote').value;
+  addDM('system', `已邮寄${type}${note ? '：' + note : ''}，预计明天送达。`);
+  closeModal('mailModal');
+}
+
+function rechargeCampusCard() {
+  const amount = parseInt(document.getElementById('campusAmount').value);
+  if (amount > 0) {
+    state.money.campus += amount;
+    state.money.parent -= amount;
+    updateStatusDisplay();
+    addDM('system', `校园卡充值成功，余额：¥${state.money.campus}`);
+    closeModal('campusCardModal');
+  }
+}
+
+function rechargePhoneCard() {
+  const amount = parseInt(document.getElementById('phoneAmount').value);
+  if (amount > 0) {
+    state.money.tel += amount;
+    state.money.parent -= amount;
+    updateStatusDisplay();
+    addDM('system', `电话卡充值成功，余额：¥${state.money.tel}`);
+    closeModal('phoneCardModal');
+  }
+}
+
+function sendSuggestion() {
+  const text = document.getElementById('suggestionText').value;
+  if (text.trim()) {
+    addDM('system', `建议已发送：${text}`);
+    closeModal('suggestionModal');
+  }
+}
+
+/* ============= 状态更新 ============= */
+function updateStatusDisplay() {
+  document.getElementById('parentMoney').textContent = `¥${state.money.parent}`;
+  document.getElementById('campusMoney').textContent = `¥${state.money.campus}`;
+  document.getElementById('phoneMoney').textContent = `¥${state.money.tel}`;
+  
+  document.getElementById('favorValue').textContent = state.rel.favor;
+  document.getElementById('favorBar').style.width = state.rel.favor + '%';
+  document.getElementById('trustValue').textContent = state.rel.trust;
+  document.getElementById('trustBar').style.width = state.rel.trust + '%';
+  
+  document.getElementById('studyValue').textContent = state.attrs.study;
+  document.getElementById('studyBar').style.width = state.attrs.study + '%';
+  document.getElementById('diligentValue').textContent = state.attrs.diligent;
+  document.getElementById('diligentBar').style.width = state.attrs.diligent + '%';
+  document.getElementById('socialValue').textContent = state.attrs.social;
+  document.getElementById('socialBar').style.width = state.attrs.social + '%';
+  document.getElementById('independentValue').textContent = state.attrs.independent;
+  document.getElementById('independentBar').style.width = state.attrs.independent + '%';
+  document.getElementById('justiceValue').textContent = state.attrs.justice;
+  document.getElementById('justiceBar').style.width = state.attrs.justice + '%';
+}
+
+/* ============= 事件监听 ============= */
+document.addEventListener('DOMContentLoaded', function() {
+  // 选项点击事件
+  document.querySelectorAll('.choice').forEach(choice => {
+    choice.addEventListener('click', () => chooseOption(choice.dataset.text));
+  });
+  
+  // 显示选项按钮
+  document.getElementById('showChoices').addEventListener('click', showChoices);
+  
+  // 发送消息按钮
+  document.getElementById('sendMessage').addEventListener('click', () => {
+    const input = document.getElementById('messageInput');
+    if (input.value.trim()) {
+      sendParent(input.value);
+      input.value = '';
+    }
+  });
+  
+  // 回车发送
+  document.getElementById('messageInput').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      const input = document.getElementById('messageInput');
+      if (input.value.trim()) {
+        sendParent(input.value);
+        input.value = '';
+      }
+    }
+  });
+  
+  // 弹窗遮罩点击关闭
+  document.querySelectorAll('.modal').forEach(modal => {
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.classList.remove('show');
+      }
+    });
+  });
+  
+  // ESC关闭弹窗
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      document.querySelectorAll('.modal.show').forEach(modal => {
+        modal.classList.remove('show');
+      });
+    }
+  });
+  
+  // 初始化显示
+  updateTimeIndicator();
+  updateStatusDisplay();
+  renderDM();
+});
+
+/* ============= 时间段控制（测试用） ============= */
+function setTimeSlot(slot) {
+  setSlot(slot);
+}
+
+// 添加时间段控制按钮（仅测试用）
+document.addEventListener('DOMContentLoaded', function() {
+  const timeControls = document.createElement('div');
+  timeControls.style.cssText = 'position:fixed;top:10px;right:10px;z-index:2000;display:flex;gap:5px;';
+  timeControls.innerHTML = `
+    <button onclick="setTimeSlot('class')" style="padding:5px 10px;font-size:12px;">上课</button>
+    <button onclick="setTimeSlot('noonBreak')" style="padding:5px 10px;font-size:12px;">午休</button>
+    <button onclick="setTimeSlot('nightStudy')" style="padding:5px 10px;font-size:12px;">晚自习</button>
+    <button onclick="setTimeSlot('afterNightStudy')" style="padding:5px 10px;font-size:12px;">下晚自习</button>
+    <button onclick="setTimeSlot('night')" style="padding:5px 10px;font-size:12px;">就寝</button>
+  `;
+  document.body.appendChild(timeControls);
+});
+</script>
+
+<!-- 🧪 冒烟测试脚本 -->
+<script>
+(function smoke(){
+  const host = document.querySelector('.phone');
+  const warn = msg=>{
+    let box = document.getElementById('smoke'); 
+    if(!box){ 
+      box=document.createElement('div'); 
+      box.id='smoke'; 
+      host.appendChild(box);
+      Object.assign(box.style,{
+        position:'absolute',left:'8px',bottom:'72px',
+        background:'#fff5f5',border:'1px solid #ff4d4f',
+        padding:'6px 8px',borderRadius:'8px',
+        font:'12px/1.4 system-ui',maxWidth:'80%'
+      });
+    }
+    box.textContent = msg;
+  };
+  if(!host) return;
+  const ib = document.querySelector('.chat-input');
+  if(!ib || getComputedStyle(ib).position!=='absolute') 
+    return warn('❌ 输入条必须绝对定位在 .phone 内部底部');
+  const ch = document.querySelectorAll('.choices .choice');
+  if(ch.length && ch.length!==3) 
+    return warn('❌ 选项必须 3 个，且只显示一组（123）');
+  const myAcks = document.querySelectorAll('.msg.me .ack');
+  if(myAcks.length>1) 
+    return warn('❌ 回执只能出现在"我方最后一条"气泡内');
+})();
+</script>
+
+</body>
+</html>

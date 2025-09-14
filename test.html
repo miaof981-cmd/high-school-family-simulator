@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+<title>高中家校生活模拟 · 第0关测试页</title>
+<style>
+  /* ============= B. UI 规范（强制） ============= */
+  .phone{position:relative;width:390px;height:780px;margin:24px auto;background:#fff;
+         border:2px solid #D8DCE1;border-radius:24px;overflow:hidden}
+  .phone .main{position:absolute;left:0;right:0;top:52px;bottom:64px;overflow:hidden}
+  .phone nav{position:absolute;left:0;right:0;bottom:0;height:64px;background:#fff;border-top:1px solid #ECEFF3}
+
+  /* 顶部条（占位 52px，非规范一部分，仅用于演示） */
+  .topbar{position:absolute;left:0;right:0;top:0;height:52px;display:flex;align-items:center;justify-content:center;
+          background:#FFFFFF;border-bottom:1px solid #ECEFF3;font:14px/1.2 system-ui;color:#4B5563}
+
+  /* 聊天页 */
+  .chat-area{position:absolute;left:0;right:0;top:0;bottom:60px;overflow:auto;padding:12px 10px;background:#F7F8FA}
+  .chat-input{position:absolute;left:0;right:0;bottom:0;height:60px;display:flex;gap:8px;padding:10px;background:#fff;border-top:1px solid #ECEFF3}
+
+  .msg{max-width:78%;margin:8px 10px;padding:10px 12px;border-radius:14px;position:relative;line-height:1.4;background:#EEF1F6;
+       word-break:break-word;overflow-wrap:anywhere;}
+  .msg.me{margin-left:auto;background:#DCF8C6}
+  .msg .time{position:absolute;bottom:6px;font-size:11px;color:#8A8F99}
+  .msg.me .time{right:8px}.msg.other .time{left:8px}
+  .msg.me .ack{position:absolute;right:8px;bottom:6px;font-size:11px;color:#8A8F99} /* 回执在气泡内右下角 */
+  .msg.system{margin:6px auto;background:#F3F5F9;color:#6B7280;font-size:12px}
+
+  .modal{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.35);z-index:1100}
+  .modal.show{display:flex}
+  .attribute-feedback,.notification{z-index:900} /* 永远低于 modal */
+
+  /* 演示用按钮样式（非规范部分） */
+  .btn{display:inline-flex;align-items:center;justify-content:center;border:1px solid #D1D5DB;border-radius:10px;height:40px;padding:0 12px;font:13px system-ui;color:#374151;background:#fff}
+  .btn:active{transform:translateY(1px)}
+  .chat-input .btn{flex:0 0 auto}
+  .chat-input .input{flex:1 1 auto;border:1px solid #E5E7EB;border-radius:10px;height:38px;padding:0 10px;font:14px system-ui;color:#111827;background:#fff}
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <div class="topbar">联系孩子</div>
+
+  <div class="main">
+    <div id="chat" class="chat-area"></div>
+    <div class="chat-input">
+      <!-- 第0关仅占位，不接入功能；后续关卡再启用 -->
+      <input class="input" type="text" placeholder="第0关仅演示布局…" disabled />
+      <button class="btn" disabled>发送</button>
+    </div>
+  </div>
+
+  <nav></nav>
+</div>
+
+<script>
+/* ============= C. 数据模型（最小子集，演示用） ============= */
+const state = {
+  slot: 'class', // class | noonBreak | nightStudy | afterNightStudy | night
+  dm:    [ /* {id, from:'parent'|'child'|'system', text, ts, status:'delivered'|'read'} */ ]
+};
+
+/* ============= 渲染：私聊消息列表 ============= */
+function addDM(from, text, status='read'){
+  const msg = { id: Date.now()+Math.random(), from, text:String(text||''), ts: Date.now(), status };
+  state.dm.push(msg); renderDM();
+}
+function renderDM(){
+  const wrap = document.getElementById('chat');
+  wrap.innerHTML = '';
+  state.dm.forEach(m=>{
+    const div = document.createElement('div');
+    div.className = 'msg ' + (m.from==='child' ? 'other' : (m.from==='parent' ? 'me' : 'system'));
+    div.textContent = m.text;
+    if(m.from!=='system'){
+      const t = document.createElement('div');
+      t.className = 'time';
+      const d = new Date(m.ts);
+      t.textContent = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+      div.appendChild(t);
+    }
+    wrap.appendChild(div);
+  });
+  wrap.scrollTop = wrap.scrollHeight + 999;
+}
+
+/* ============= 第0关：预置一条孩子消息 ============= */
+addDM('child','（示例）今天数学小测，还算顺利～','read');
+</script>
+</body>
+</html>
