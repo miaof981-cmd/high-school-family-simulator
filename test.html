@@ -89,5 +89,55 @@ function renderDM(){
 /* ============= 第0关：预置一条孩子消息 ============= */
 addDM('child','（示例）今天数学小测，还算顺利～','read');
 </script>
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>测试页</title>
+  <style>
+    /* 你的 CSS */
+  </style>
+</head>
+<body>
+  <div class="phone">
+    <!-- 你的聊天 UI -->
+  </div>
+
+  <script>
+    // 你的主逻辑 JS
+  </script>
+
+  <!-- 🧪 冒烟测试脚本 -->
+  <script>
+  (function smoke(){
+    const host = document.querySelector('.phone');
+    const warn = msg=>{
+      let box = document.getElementById('smoke'); 
+      if(!box){ 
+        box=document.createElement('div'); 
+        box.id='smoke'; 
+        host.appendChild(box);
+        Object.assign(box.style,{
+          position:'absolute',left:'8px',bottom:'72px',
+          background:'#fff5f5',border:'1px solid #ff4d4f',
+          padding:'6px 8px',borderRadius:'8px',
+          font:'12px/1.4 system-ui',maxWidth:'80%'
+        });
+      }
+      box.textContent = msg;
+    };
+    if(!host) return;
+    const ib = document.querySelector('.chat-input');
+    if(!ib || getComputedStyle(ib).position!=='absolute') 
+      return warn('❌ 输入条必须绝对定位在 .phone 内部底部');
+    const ch = document.querySelectorAll('.choices .choice');
+    if(ch.length && ch.length!==3) 
+      return warn('❌ 选项必须 3 个，且只显示一组（123）');
+    const myAcks = document.querySelectorAll('.msg.me .ack');
+    if(myAcks.length>1) 
+      return warn('❌ 回执只能出现在“我方最后一条”气泡内');
+  })();
+  </script>
 </body>
 </html>
+

@@ -7,8 +7,8 @@
 <style>
   /* ============= B. UI 规范（强制） ============= */
   .phone{position:relative;width:390px;height:780px;margin:24px auto;background:#fff;
-         border:2px solid #D8DCE1;border-radius:24px;overflow:hidden}
-  .phone .main{position:absolute;left:0;right:0;top:52px;bottom:64px;overflow:hidden}
+         border:2px solid #D8DCE1;border-radius:24px;overflow:hidden;display:flex;flex-direction:column}
+  .phone .main{position:absolute;left:0;right:0;top:52px;bottom:64px;overflow:hidden;display:flex;flex-direction:column}
   .phone nav{position:absolute;left:0;right:0;bottom:0;height:64px;background:#fff;border-top:1px solid #ECEFF3}
 
   /* 顶部条 */
@@ -26,9 +26,9 @@
   .page.active{display:block}
 
   /* 聊天页 - 微信风格 */
-  .chat-area{position:absolute;left:0;right:0;top:0;bottom:60px;overflow:auto;background:#F7F8FA;z-index:1}
-  .chat-list{padding:12px 12px calc(72px + env(safe-area-inset-bottom));}
-  .chat-input{position:fixed;left:0;right:0;bottom:0;height:60px;display:flex;gap:8px;padding:10px;background:#fff;border-top:1px solid #eef0f3;z-index:10;padding-bottom:env(safe-area-inset-bottom)}
+  .chat-area{flex:1;overflow:auto;background:#F7F8FA;z-index:1;padding-bottom:calc(72px + env(safe-area-inset-bottom))}
+  .chat-list{padding:12px 12px 0;}
+  .chat-input{position:sticky;bottom:0;z-index:10;height:60px;background:#fff;border-top:1px solid #eef0f3;display:flex;gap:8px;padding:8px 12px calc(8px + env(safe-area-inset-bottom)) 12px}
   
   /* 消息气泡 - 微信风格 */
   .msg{position:relative;margin:8px 0;display:flex;}
@@ -54,7 +54,7 @@
   .msg.system{margin:6px auto;background:#F3F5F9;color:#6B7280;font-size:12px;padding:8px 12px;border-radius:8px;max-width:80%;}
 
   /* 选项样式 */
-  .choices{position:fixed;left:0;right:0;bottom:60px;background:#fff;border-top:1px solid #eef0f3;padding:10px;display:none;z-index:100;padding-bottom:env(safe-area-inset-bottom)}
+  .choices{position:absolute;left:0;right:0;bottom:60px;background:#fff;border-top:1px solid #eef0f3;padding:10px;display:none;z-index:100;padding-bottom:env(safe-area-inset-bottom)}
   .choices.show{display:block}
   .choice{display:block;width:100%;padding:12px;margin:4px 0;border:1px solid #E5E7EB;border-radius:8px;background:#fff;font:14px/1.4 system-ui;color:#374151;cursor:pointer;text-align:left}
   .choice:hover{background:#F9FAFB}
@@ -134,8 +134,8 @@
   <!-- 主内容区 -->
   <div class="main">
     <!-- 家长群页面 -->
-    <div id="groupPage" class="page active">
-      <div class="group-content">
+    <div id="groupPage" class="page active" style="display:flex;flex-direction:column">
+      <div class="group-content" style="flex:1;overflow:auto;padding:16px;padding-bottom:calc(72px + env(safe-area-inset-bottom))">
         <div class="group-msg teacher">
           <div>各位家长好，今天数学小测成绩已公布，请关注孩子学习状态。</div>
           <div class="group-time">14:30</div>
@@ -157,7 +157,7 @@
     </div>
 
     <!-- 联系孩子页面 -->
-    <div id="contactPage" class="page">
+    <div id="contactPage" class="page" style="display:flex;flex-direction:column">
       <div id="chat" class="chat-area">
         <ul id="chatList" class="chat-list"></ul>
       </div>
@@ -824,8 +824,24 @@ function switchTab(tab) {
   event.target.closest('.nav-item').classList.add('active');
   
   // 更新页面显示
-  document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
-  document.getElementById(tab + 'Page').classList.add('active');
+  document.querySelectorAll('.page').forEach(page => {
+    page.classList.remove('active');
+    // 重置flex布局
+    if (tab === 'group' || tab === 'contact') {
+      page.style.display = 'none';
+    }
+  });
+  
+  const targetPage = document.getElementById(tab + 'Page');
+  targetPage.classList.add('active');
+  
+  // 为聊天页面应用flex布局
+  if (tab === 'group' || tab === 'contact') {
+    targetPage.style.display = 'flex';
+    targetPage.style.flexDirection = 'column';
+  } else {
+    targetPage.style.display = 'block';
+  }
   
   state.activeTab = tab;
 }

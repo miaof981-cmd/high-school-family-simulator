@@ -1,0 +1,529 @@
+《高中家校生活模拟》
+
+A. 端到端目标
+	1.	项目形态
+	•	单页应用（SPA）。
+	•	所有界面均约束在 .phone 容器内，禁止溢出。
+	•	界面分 4 个 Tab：
+	1.	家长群
+	2.	联系孩子
+	3.	家长操作
+	4.	孩子状态
+	2.	消息交互逻辑
+	•	家长发言：选项式（123 数字编号），由系统提供候选 → 文案由 AI 润色成更自然的口语化家长发言。
+	•	建议功能：与发言同样为选项式，每次打开从 AI 接口动态生成候选项。
+	•	消息回执：
+	•	安静时段（上课、晚自习、就寝）：家长消息标记为「已送达」；孩子暂不回复。
+	•	可聊时段（午休、下晚自习）：
+	•	孩子立刻发开场白（如“我现在下晚自习啦～”）。
+	•	将之前未读的家长消息逐条改为「已读」，并逐条引用回复。
+	•	回执仅显示在家长最后一条气泡的右下角。
+	3.	时间段状态机
+	•	时间段：上课｜午休｜晚自习｜下晚自习｜就寝。
+	•	切换前必须执行 clearAllTimers()，禁止残留定时器或状态抖动。
+	4.	家长操作
+	•	功能：邮寄物品、校园卡充值、电话卡充值。
+	•	交互：使用弹窗，仅允许一个弹窗存在。
+	•	弹窗必须可关闭（取消按钮、右上角 ×、点遮罩、ESC）。
+	5.	数值系统
+	•	校园卡余额
+	•	电话卡余额
+	•	家长资金
+	•	好感度
+	•	信任度
+	•	五维属性：学习 / 勤奋 / 社交 / 独立 / 正义
+	6.	孩子回复逻辑
+	•	每次生成回复前，先经过数值系统判断：
+	•	当前亲密度、情绪状态、属性值 → 决定态度与反应倾向。
+	•	最终由 AI 接口润色成自然对话，符合孩子性格。
+	•	示例：
+	•	家长发 “早点休息” → 孩子学习属性高 → 回复 “嗯嗯，我正准备复习一会儿再睡～”。
+	•	家长发 “早点休息” → 孩子厌学属性高 → 回复 “唉，作业写不完啊，烦死了”。
+
+
+高中校园逻辑约束
+
+0. 使用范围
+	•	本章为AI 生成内容与事件的强约束。所有孩子对话、系统播报、建议候选，必须遵守本章。
+	•	若有冲突，以本章优先；如仍无法生成，必须返回“重写请求（retry）”并按“违规重写规则”处理。
+
+⸻
+
+1. 角色 & 叙述视角
+	•	孩子：第一人称“我”，不自称外号，不出现“网友/陌生人/社会人士”。
+	•	家长：由系统把“家长选项”润色为自然口语对话。
+	•	教师/同学/室友：可出场，但仅限校内关系与事件。
+
+⸻
+
+2. 时段/地点/行为矩阵（最关键）
+
+只有下表允许的组合可以出现；未列出的组合一律禁止。
+
+时段 (slot)	典型地点	可做的事（允许）	禁止内容（举例）
+上课（07:30–11:50 / 14:00–17:30）	教室、走廊、办公室	听课、被点名、小测验、回答问题、被批评/表扬、与同桌小声讨论	出校门、去商场/网吧、去朋友家、长时间打电话、校外聚会
+午休（12:10–13:40）	宿舍、自习室、食堂	小睡、午饭、简单复习、和室友聊天、短短信往来	出校门、外出游玩、夜生活描述
+晚自习（19:00–21:30）	教室	写作业、复习、被老师巡堂、同学互助	外出、喝酒、社交媒体约人、去网吧
+下晚自习后（21:30–22:30）	回宿舍路上、宿舍	洗漱、收拾书包、整理笔记、短时间聊天/短信、简单加餐	外出夜游、过夜在校外、朋友家留宿
+就寝（22:30–06:30）	宿舍	熄灯、睡觉、偶发心情文字（不可长聊）	长时间聊天、任何校外活动
+
+规则：安静时段=上课/晚自习/就寝；可聊时段=午休/下晚自习后。
+
+⸻
+
+3. 校园对象白名单 / 黑名单
+	•	白名单：同桌、室友、班主任、任课老师、同学、年级组、社团学长/学姐、校医、宿管。
+	•	黑名单（禁止出现）：网友、陌生大人、社会人士、朋友家长、校外店主、网吧老板等。
+
+⸻
+
+4. 禁止主题清单（硬限制）
+	•	校外自由活动（去朋友家/逛街/网吧/酒吧/夜店/旅游/出城/过夜）。
+	•	违法与不当行为细节化描写（打架细节、危险挑战等）。
+	•	露骨内容、未成年人不宜话题。
+	•	与学校制度冲突的设定（“随便旷课去城里玩”这类）。
+
+发现命中禁止主题 → 触发“违规重写”流程（见 §11）。
+
+⸻
+
+5. 消息与回执规则（对应 UI/逻辑）
+	•	家长消息：选项式（1/2/3），先生成“事实意图”，再由 AI 润色为自然口语。
+	•	回执：
+	•	安静时段：家长消息标记“已送达”（未读），孩子不回复；系统补一条短提示（如“孩子在上课/晚自习/就寝，稍后统一回复”）。
+	•	可聊时段切换瞬间：
+	1.	开场白（必须含当前时段）：“我现在午休啦～ / 我现在下晚自习啦～”；
+	2.	逐条把此前“已送达”改为“已读”；
+	3.	按发送时间顺序逐条引用家长消息进行回复（每条最多 1 句引用 + 1 句回应）。
+	•	回执只显示在家长最后一条气泡内（UI 细节由前端处理）。
+
+⸻
+
+6. 孩子性格与数值影响（生成前置判断）
+
+生成前必须读取数值，决定语气/长度/采纳度；生成后应用属性变化。
+
+6.1 输入态（示例）
+	•	favor（好感）0–100：≥70 亲密称呼（“妈/爸/老妈”），40–69 中性，<40 冷淡/克制。
+	•	trust（信任）0–100：≥70 更愿意采纳建议，<40 倾向坚持己见。
+	•	attrs（0–100）：
+	•	study（学习）：高→主动谈学业、条理清晰；低→逃避、抱怨。
+	•	diligent（勤奋）：高→计划/执行；低→拖延。
+	•	social（社交）：高→多同学互动/群体；低→独处、短句。
+	•	independent（独立）：高→自我决定；低→依赖家长。
+	•	justice（正义）：高→遵规守纪；低→容易吐槽制度/偷懒。
+
+6.2 输出调节（示例）
+	•	好感高 + trust高 → 亲密口吻 + 更可能“采纳”家长建议。
+	•	study低 + diligent低 → 更可能“求助/拖延语气”。
+	•	social低 → 句子短、少拟声词；social高 → 表情符号、口语化更强。
+
+⸻
+
+7. 建议/选项生成规则
+	•	家长每次打开“建议”或“联系孩子输入区”，生成3 个候选（数字 1/2/3），只能一组。
+	•	建议类型池（从中抽 1–2 类，避免重复）：
+	•	学业（复习计划、错题本、请教老师/同学）
+	•	作息（午休、晚睡提醒、运动 15 分钟）
+	•	社交（社团试试、和室友沟通、冲突化解）
+	•	情绪（放松方法、压力记录、深呼吸）
+	•	生活（补给/邮寄、餐食建议）
+	•	纪律（手机使用时间、宿舍卫生、晚自习专注）
+	•	润色：将“事实意图”转为家长自然口语（不得出现命令式/PUA 语气，避免逼迫）。
+	•	采纳：孩子是否采纳由 trust / independent 决定；采纳/拒绝都要给出1句理由。
+
+⸻
+
+8. 事件库（允许生成的“日常播报”）
+	•	学业：听课状态、提问、点名、小测验、作业进度、错题/掌握点。
+	•	体育：跑步、体测、球类训练、集合迟到/表现。
+	•	社团：招新、活动策划、考核。
+	•	人际：与同桌/室友的小冲突与和解、分享食物、互相借书。
+	•	纪律：老师提醒、带手机、打瞌睡、卫生检查、查寝。
+	•	健康：感冒、肚子疼、头疼、去校医室。
+
+每条事件 ≤ 2 句；只在可聊时段才会被孩子写成短信；安静时段仅在系统播报中提及。
+
+⸻
+
+9. 资金/能力约束（回复与事件要受限）
+	•	校园卡余额不足 → 触发“吃饭受影响/借钱/请求充值”的需求倾向。
+	•	电话卡余额 ≤0 → 孩子不能发送短信与电话（仅系统提示）。
+	•	家长资金不足 → 家长操作（邮寄/充值）受限（由前端判定），AI 只描述结果或建议替代方案（如“先食堂预支/找老师报备”）。
+
+⸻
+
+10. 输出格式与长度
+	•	短信：每条 1–2 句、≤60 字；引用格式：> 引用：{家长消息摘要} 后接回应（引用只在“可聊时段开场后”的统一回复里出现）。
+	•	口吻：自然、口语化、无网络黑话；避免过度表情；禁止“出去玩/去朋友家”等词。
+	•	开场白模板：
+	•	午休开始：我现在午休啦～
+	•	下晚自习开始：我现在下晚自习啦～
+
+⸻
+
+11. 违规重写规则（防止“瞎编”）
+	•	生成前：先本地词表检查（正则/关键词），命中以下任一项 → 禁止输出，立即改写：
+	•	关键词（示例）：去朋友家|出校门|逛街|商场|网吧|酒吧|夜店|旅行|旅游|出城|约网友|社会人士|住外面
+	•	生成后：再次检查（双保险）。若依然命中 → 强制替换为最接近的“校内等价动作”（如“和室友在宿舍聊天/操场散步”），并降低社交/纪律属性 1–2 点作为惩罚（可选）。
+	•	若连续 2 次命中黑名单 → 返回固定系统提示：“（系统已纠正为校内合规行为）”。
+
+⸻
+
+12. 生成流程（必须遵循的顺序）
+	1.	读取状态：slot、favor/trust/attrs、余额、未读消息列表。
+	2.	确定能不能聊：安静→仅“已送达 + 系统短提示”；可聊→进入第 3 步。
+	3.	可聊开场：发送“我现在{午休/下晚自习}啦～”。
+	4.	逐条回复：对未读消息按时间顺序，每条做：引用摘要 → 基于数值给出回应（1 句），必要时提出一个轻量需求或反馈（最多 1 个）。
+	5.	建议/选项：当家长打开建议面板 → 生成 3 个“事实意图” → 润色为自然口语。
+	6.	违规检查（前/后双检）→ 必要时重写。
+	7.	属性结算：按标签/行为调整 favor/trust/attrs，并返回 delta（让前端更新状态页）。
+
+⸻
+
+13. 属性影响表（示例，可扩展）
+
+标签/事件	study	diligent	social	independent	justice	favor	trust
+采纳“复习计划”	+2	+2	0	+1	+1	+1	+2
+拒绝“早点休息”	0	-1	0	+1	-1	-1	-1
+午休看手机过长	0	-1	0	0	-2	0	-1
+晚自习专注	+2	+2	0	0	+1	0	+1
+与室友和解	0	0	+2	0	+1	+1	+1
+
+每次结算幅度建议 -3~+3，避免飘太快。
+
+⸻
+
+14. 接入 AI 的提示模板（放到 system / user 里）
+
+14.1 系统提示（system prompt，固定开头）
+
+你是“寄宿制高中生活模拟器”的孩子角色生成器。严格遵循：
+	•	校园逻辑约束（仅允许在校内地点、允许的活动与对象）。
+	•	时段规则（安静=已送达不回复；可聊=开场白+逐条引用未读并回复）。
+	•	禁止词：去朋友家/出校门/逛街/商场/网吧/酒吧/夜店/旅行/旅游/出城/约网友/社会人士/住外面 等。
+	•	口吻：孩子第一人称，1–2 句/条，≤60 字；自然、口语、不过度表情。
+	•	生成前后都做黑名单检查，命中则重写为合规“校内等价”行为。
+输出 JSON：
+{ "opening":"…可选", "replies":[{"ref":"家长消息摘要","text":"孩子回复"}…], "effects":{"favor":0,"trust":0,"attrs":{"study":0,"diligent":0,"social":0,"independent":0,"justice":0}} }
+
+14.2 用户输入（user payload，示例）
+
+{
+  "slot": "afterNightStudy",
+  "state": {
+    "favor": 62, "trust": 55,
+    "attrs": {"study":70,"diligent":65,"social":40,"independent":55,"justice":20},
+    "money": {"campus":120,"tel":15,"parent":2000}
+  },
+  "unreplied": [
+    "早点休息，别太晚了。",
+    "明天想不想去问下老师？"
+  ],
+  "intent": "dm_reply", 
+  "constraints": {"maxLen":60,"maxReplies":3}
+}
+
+14.3 期望返回（assistant，示例）
+
+{
+  "opening": "我现在下晚自习啦～",
+  "replies": [
+    {"ref": "早点休息…", "text": "我再收拾下就睡～"},
+    {"ref": "问下老师…", "text": "好，我明天中午去办公室问下。"}
+  ],
+  "effects": {
+    "favor": 1, "trust": 2,
+    "attrs": {"study":1,"diligent":1,"social":0,"independent":0,"justice":1}
+  }
+}
+
+接口地址：https://dmxapi.cn（令牌后端注入，不在前端硬编码）。
+失败兜底：返回 { "opening": "", "replies": [], "effects": {…0} }，并由前端展示“系统提示：孩子暂未回复”。
+
+⸻
+
+15. 建议候选生成（接口模板）
+	•	输入：当前 slot、最近 3 条群/私聊语境、孩子数值。
+	•	输出：3 个“事实意图” + 3 个对应“润色版口语”。
+	•	例：
+
+{
+  "candidates": [
+    {"raw":"午休小睡20分钟并设闹钟","pretty":"午休小睡 20 分钟，记得设闹钟呀～"},
+    {"raw":"晚自习后列复习清单3条","pretty":"下晚自习后写个 3 条的复习清单吧"},
+    {"raw":"明天中午去问老师一道题","pretty":"明天中午去问问老师这道题吧？"}
+  ]
+}
+
+	•	润色时同样执行黑名单检查，命中即重写。
+
+⸻
+
+16. 前端校验钩子（生成后再守一遍）
+	•	本地校验（生成后）：
+	1.	关键词黑名单正则；
+	2.	字数/句数限制；
+	3.	是否包含开场白（仅在可聊切换时要求）；
+	4.	回复条数 ≤ maxReplies；
+	5.	JSON schema 校验（字段齐全）。
+	•	任一未通过 → 不展示，重发“请按校园约束重写”的 AI 请求。
+
+⸻
+
+17. 可测试清单（DoD）
+	•	安静时段发送 → 仅“已送达 + 短系统提示”，无孩子回复。
+	•	切到午休/下晚自习 → 必有开场白 + 未读逐条“已读” + 引用逐条回复。
+	•	任何回复中不出现黑名单词与校外场景。
+	•	每条回复 ≤ 60 字、1–2 句；口吻符合数值（好感/信任/属性）。
+	•	建议候选始终为 3 条，数字 1/2/3，润色自然，无命令口气。
+	•	AI 返回 effects 映射到前端状态页，数值变化 ≤ ±3。
+	•	接口异常时有兜底提示，不崩溃。
+
+
+B. UI 规范（强制）
+
+.phone{position:relative;width:390px;height:780px;margin:0 auto;background:#fff;
+       border:2px solid #D8DCE1;border-radius:24px;overflow:hidden}
+.phone .main{position:absolute;left:0;right:0;top:52px;bottom:64px;overflow:hidden}
+.phone nav{position:absolute;left:0;right:0;bottom:0;height:64px}
+
+/* 聊天页 */
+.chat-area{position:absolute;left:0;right:0;top:0;bottom:60px;overflow:auto;padding:12px 10px;background:#F7F8FA}
+.chat-input{position:absolute;left:0;right:0;bottom:0;height:60px;display:flex;gap:8px;padding:10px;background:#fff;border-top:1px solid #ECEFF3}
+.msg{max-width:78%;margin:8px 10px;padding:10px 12px;border-radius:14px;position:relative;line-height:1.4;background:#EEF1F6}
+.msg.me{margin-left:auto;background:#DCF8C6}
+.msg .time{position:absolute;bottom:6px;font-size:11px;color:#8A8F99}
+.msg.me .time{right:8px}.msg.other .time{left:8px}
+.msg.me .ack{position:absolute;right:8px;bottom:6px;font-size:11px;color:#8A8F99} /* 回执在气泡内右下角 */
+.msg.system{margin:6px auto;background:#F3F5F9;color:#6B7280;font-size:12px}
+
+.modal{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.35);z-index:1100}
+.modal.show{display:flex}
+.attribute-feedback,.notification{z-index:900} /* 永远低于 modal */
+
+禁止 position: fixed 绑视口；一切定位以 .phone 为参照。
+
+
+
+C. 数据模型（前端可先用内存/LocalStorage）
+
+const state = {
+  slot: 'class', // class | noonBreak | nightStudy | afterNightStudy | night
+  testMode: false,
+
+  // 资金
+  money: { parent: 2000, campus: 120, tel: 20 },
+
+  // 关系
+  rel: { favor: 50, trust: 50 },
+
+  // 属性（0-100）
+  attrs: { study: 62, diligent: 58, social: 40, independent: 70, justice: 0 },
+
+  // 会话
+  group: [ /* {id, from:'teacher'|'parentSelf'|'parentOther', text, ts} */ ],
+  dm:    [ /* {id, from:'parent'|'child'|'system', text, ts, status:'delivered'|'read', refId?} */ ],
+
+  // 队列：安静时段家长发出的“已送达未读”
+  unreadForChild: [],   // [msgId]
+
+  // UI
+  activeTab: 'contact', // group | contact | actions | status
+  choicesStyle: 'alpha' // 'alpha' or 'numeric' （二选一）
+};
+
+
+⸻
+
+D. 时间段状态机（关键）
+	•	安静：class / nightStudy / night
+	•	可聊：noonBreak / afterNightStudy
+	•	切换函数：
+
+let timers=[];
+function after(ms, fn){ const t=setTimeout(fn,ms); timers.push(t); return t; }
+function clearAllTimers(){ timers.forEach(clearTimeout); timers=[]; }
+
+function setSlot(next){
+  if(state.slot===next) return;
+  clearAllTimers();                // 禁止并发状态
+  state.slot = next;
+  renderTopBar();
+
+  // 安静->可聊：开场白 + flush 未读
+  if(next==='noonBreak' || next==='afterNightStudy'){
+    addDM('child', next==='noonBreak'?'午休啦，我来看看消息～':'晚自习结束啦，我来看看消息～');
+    flushUnreadWithQuotedReplies();
+  }
+}
+
+function flushUnreadWithQuotedReplies(){
+  const ids = [...state.unreadForChild];
+  state.unreadForChild = [];
+  ids.forEach((pid,i)=>{
+    markReadUpTo(pid);                           // 把 <= pid 的家长消息改为已读
+    after(600 + i*800, ()=> addDM('child', autoReplyFor(pid), {refId: pid})); // 逐条引用回复
+  });
+}
+
+
+
+   E. 私聊（联系孩子）
+
+
+// 规则
+//  • 家长只能选项式发言（3 条，只显示一组： 123）；孩子不出现选项。
+//  • 安静时段：家长发送 → status:'delivered'（已送达未读），并补一条系统提示（短文案）。
+//  • 可聊时段：家长发送 → 很快 read；孩子可即时或稍后回复。
+//  • 回执只显示在“我方最后一条”气泡内右下角（“已送达/已读”）。
+
+// 添加一条消息到 state.dm
+function addDM(from, text, {status='delivered', refId=null}={}) {
+  const id = Date.now() + Math.random(); // 简单生成唯一id
+  state.dm.push({ id, from, text, ts: Date.now(), status, refId });
+  renderDM();
+  return id;
+}
+
+// 家长发送消息（走选项）
+function sendParent(text) {
+  const id = addDM('parent', text, {status:'delivered'});
+  if (isQuiet()) {
+    // 安静时段 → 未读队列
+    state.unreadForChild.push(id);
+    addDM('system', quietTip(state.slot));  // 简短系统提示
+  } else {
+    // 可聊时段 → 立刻已读 + 孩子回复
+    after(300, ()=> markReadUpTo(id));
+    after(800, ()=> addDM('child', autoReplyFor(id), {refId:id}));
+  }
+}
+
+// 标记家长消息 <= id 为已读
+function markReadUpTo(id) {
+  state.dm.forEach(m => {
+    if (m.from==='parent' && m.id <= id) m.status='read';
+  });
+  renderDM();
+}
+
+// 判断是否安静时段
+const isQuiet = () => !['noonBreak','afterNightStudy'].includes(state.slot) && !state.testMode;
+
+// 系统提示（安静时段）
+function quietTip(slot) {
+  if (slot==='class') return '孩子在上课，暂时无法回复。';
+  if (slot==='nightStudy') return '孩子在晚自习，稍后统一回复。';
+  if (slot==='night') return '孩子已就寝，明早才能看到消息。';
+  return '孩子暂时无法回复。';
+}
+
+/* ==========
+   选项池
+   ========== */
+
+const OPTION_BANK = {
+  default: [
+    { text:'先去教室自习一会儿。', tag:'study_here' },
+    { text:'回宿舍早点休息。',     tag:'rest_dorm'  },
+    { text:'去食堂买瓶牛奶。',     tag:'snack'      }
+  ],
+  afterNightStudy: [
+    { text:'晚自习辛苦了，路上注意安全。', tag:'after_ns_rest' },
+    { text:'有疑问就去问老师。',           tag:'ask_teacher'  },
+    { text:'和同学讨论一下思路。',         tag:'discuss'      }
+  ]
+};
+
+// 渲染选项（传上下文 ctx）
+function renderChoices(ctx='default') {
+  show3(OPTION_BANK[ctx] || OPTION_BANK.default);
+}
+
+// 选择一个选项 → 发消息 & 应用属性变化
+function chooseOption(opt) {
+  sendParent(opt.text);
+  applyEffectByTag(opt.tag);   // 数值系统变化
+}
+
+/* ==========
+   数值系统
+   ========== */
+
+// 标签对应的属性/好感/信任变化表
+const EFFECTS_BY_TAG = {
+  study_here:       { study:+2, diligent:+1, favor:+1, trust:+1 },
+  rest_dorm:        { diligent:-1, independent:+1, favor:+1 }, 
+  snack:            { favor:+1, social:+1 },
+
+  after_ns_rest:    { diligent:+1, favor:+1, trust:+1 },
+  ask_teacher:      { study:+2, diligent:+1, trust:+2 },
+  discuss:          { social:+2, trust:+1, favor:+1 },
+
+  // 可继续扩展更多 tag
+};
+
+// 根据 tag 应用属性变化
+function applyEffectByTag(tag) {
+  const eff = EFFECTS_BY_TAG[tag];
+  if (!eff) return;
+  // 逐项累加，确保不会超出 0–100
+  for (const k in eff) {
+    if (k in state.attrs) {
+      state.attrs[k] = Math.max(0, Math.min(100, state.attrs[k] + eff[k]));
+    } else if (k==='favor' || k==='trust') {
+      state.rel[k] = Math.max(0, Math.min(100, state.rel[k] + eff[k]));
+    }
+  }
+  renderStatus(); // 刷新状态页
+}
+
+
+F. 家长群
+	•	群里有老师广播、其他家长偶发发言；自己家长发言=选项式（同私聊但文案不同）。
+	•	必须有输入区/选项或发送方式，可与私聊共用组件。
+	•	任何发言都写入 state.group，带时间戳。
+
+⸻
+
+G. 家长操作（弹窗）
+	•	只允许一个弹窗存在；可通过 取消/×/点遮罩/ESC 关闭。
+	•	邮寄物品（可选不同类型）→ 加系统/孩子反馈 + 改属性；
+	•	校园卡充值（任意金额与快捷金额）→ 改 money.campus；
+	•	电话卡充值 → 改 money.tel（短信开关依赖它）；
+	•	提供建议 → 记录为“待孩子有空时处理”的事项，孩子在可聊时段可能采纳/拒绝（影响信任/好感）。
+
+
+H. 孩子状态页
+	•	实时显示五维属性与资金；任何 applyEffect 后 立即刷新。
+	•	最简日志（最近 10 条变更）方便校对。
+
+
+🔌 AI 接口接入规范
+	•	接口地址：https://dmxapi.cn
+	•	认证令牌：sk-9ANtPqUHF4aLqKvE2U714fbvpj3Rk4UUEzfSobmUk0C1ZMd4
+	•	调用方式：
+	•	POST /chat
+	•	Body：
+
+{
+  "role": "child",
+  "context": {
+    "favor": 62,
+    "trust": 55,
+    "attrs": {"study": 70, "diligent": 65, "social": 40, "independent": 55, "justice": 20},
+    "lastMessages": ["爸妈：早点休息哦"]
+  }
+}
+
+	•	Response：
+
+{
+  "reply": "我现在下晚自习啦～作业写完才能休息，真的有点累。"
+}
+
+	•	使用规则：
+	•	建议和发言 → 本地生成候选（3 条） → 送到 AI 润色。
+	•	孩子回复 → 输入属性/状态 + 家长消息 → 由 AI 决定语气/文案。
+	•	必须保证接口调用失败时有兜底回复（如“[系统提示] 孩子暂未回复”）。
